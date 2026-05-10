@@ -26,6 +26,9 @@ class Frame:
     def unpack(self):
         pass
 
+    def mac_to_bytes(self, mac: str) -> bytes:
+        pass
+
 
 class Packet:
     def __init__(
@@ -47,6 +50,8 @@ class Packet:
     def pack(self):
         pass
     def unpack(self):
+        pass
+    def ip_to_bytes(self, ip: str) -> bytes:
         pass
 
 class Segment:
