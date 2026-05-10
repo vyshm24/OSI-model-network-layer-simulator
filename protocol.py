@@ -5,7 +5,7 @@ class Frame:
     def __init__(self, 
     src_mac: bytes,
     dst_mac: bytes,
-    ethertype: int,
+    ethertype: bytes,
     payload: bytes = bytes()
     ):
     
@@ -29,4 +29,29 @@ class Frame:
         frame_format = f'!6s6sH{len(self.payload)}s'
         return struct.pack(frame_format, self.dst_mac, self.src_mac, self.ethertype, self.payload)
 
+
+class Packet:
+    def __init__(
+        self,
+        src_ip: bytes,
+        dst_ip: bytes,
+        ttl: bytes,
+        protocol: bytes,
+        length: bytes,
+        payload: bytes = bytes()
+    ):
+        pass
+
+class Segment:
+        def __init__(
+            self,
+            src_port: bytes,
+            dst_port: bytes,
+            seq_num: bytes,
+            length: bytes,
+            type: bytes,
+            checksum: bytes,
+            payload: bytes = bytes()
+        ):
+            pass
 
