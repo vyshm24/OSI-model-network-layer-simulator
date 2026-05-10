@@ -40,7 +40,12 @@ class Packet:
         length: bytes,
         payload: bytes = bytes()
     ):
-        pass
+        self.src_ip = src_ip
+        self.dst_ip = dst_ip
+        self.ttl = ttl
+        self.protocol = protocol
+        self.length = length
+        self.payload = payload
 
 class Segment:
         def __init__(
@@ -53,5 +58,11 @@ class Segment:
             checksum: bytes,
             payload: bytes = bytes()
         ):
-            pass
+            self.src_port = src_port
+            self.dst_port = dst_port
+            self.seq_num = seq_num
+            self.length = length
+            self.type = type
+            self.checksum = checksum
+            self.payload = payload
 
