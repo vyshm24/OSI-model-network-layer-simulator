@@ -1,18 +1,33 @@
 import struct
 
+def bytes_to_mac(mac_bytes: bytes) -> str:
+    return ':'.join(f'{byte:02X}' for byte in mac_bytes)
+
+def mac_to_bytes(mac: str) -> bytes:
+    return bytes.fromhex(mac.replace(':', ''))
+
+def ip_to_bytes(ip):
+    return bytes(map(int, ip.split('.')))
+
+def bytes_to_ip(ip_bytes):
+    return '.'.join(map(str, ip_bytes))
+
 class Frame:
     MAX_DATA_SIZE = 1000
+    HEADER_FORMAT = '! 6s 6s H'
+    HEADER_SIZE = struct.calcsize(HEADER_FORMAT)
+
     def __init__(self, 
-        src_mac: bytes,
-        dst_mac: bytes,
-        ethertype: bytes,
+        src_mac: str,
+        dst_mac: str,
+        ethertype: int,
         payload: bytes = bytes()
     ):
         if len(payload) > Frame.MAX_DATA_SIZE:
             raise RuntimeError('too much data for one Frame!')
-        if len(src_mac) != 6:
+        if len(src_mac.split(':')) != 6:
             raise RuntimeError('invalid source MAC address!')
-        if len(dst_mac) != 6:
+        if len(dst_mac.split(':')) != 6:
             raise RuntimeError('invalid destination MAC address!')
 
         self.src_mac = src_mac
@@ -21,13 +36,33 @@ class Frame:
         self.payload = payload
 
     def pack(self):
+
+        self.dst_mac = mac_to_bytes(self.dst_mac)
+        self.src_mac = mac_to_bytes(self.src_mac)
+
         frame_format = f'!6s6sH{len(self.payload)}s'
         return struct.pack(frame_format, self.dst_mac, self.src_mac, self.ethertype, self.payload)
-    def unpack(self):
-        pass
 
-    def mac_to_bytes(self, mac: str) -> bytes:
-        pass
+    @staticmethod
+    def unpack(raw_data):
+
+        header = raw_data[:Frame.HEADER_SIZE]
+
+        dst_mac, src_mac, eth_type = struct.unpack(
+            Frame.HEADER_FORMAT,
+            header
+        )
+
+        payload = raw_data[Frame.HEADER_SIZE:]
+
+        return Frame(
+            bytes_to_mac(dst_mac),
+            bytes_to_mac(src_mac),
+            eth_type,
+            payload
+        )
+
+    
 
 
 class Packet:
@@ -36,47 +71,41 @@ class Packet:
 
     def __init__(
         self,
-        src_ip: bytes,
-        dst_ip: bytes,
-        ttl: bytes,
-        protocol: bytes,
-        length: bytes,
+        src_ip: str,
+        dst_ip: str,
+        ttl: int,
+        protocol: int,
         payload: bytes = bytes()
     ):
         self.src_ip = src_ip
         self.dst_ip = dst_ip
         self.ttl = ttl
         self.protocol = protocol
-        self.length = length
         self.payload = payload
 
         self.total_length = len(self.payload) + Packet.HEADER_SIZE
 
     
-    def ip_to_bytes(self, ip):
-        return bytes(map(int, ip.split('.')))
 
-    def bytes_to_ip(self, ip_bytes):
-        return '.'.join(map(str, ip_bytes))
 
 
     
     def pack(self):
         return struct.pack(
             Packet.HEADER_FORMAT,
-            self.ip_to_bytes(self.src_ip),
-            self.ip_to_bytes(self.dst_ip),
+            ip_to_bytes(self.src_ip),
+            ip_to_bytes(self.dst_ip),
             self.ttl,
             self.protocol,
             self.total_length
         ) + self.payload
 
 
-
-    def unpack(self, data):
+    @staticmethod
+    def unpack(data):
         header = struct.unpack(Packet.HEADER_FORMAT, data[:Packet.HEADER_SIZE])
-        src_ip = self.bytes_to_ip(header[0])
-        dst_ip = self.bytes_to_ip(header[1])
+        src_ip = bytes_to_ip(header[0])
+        dst_ip = bytes_to_ip(header[1])
         ttl = header[2]
         protocol = header[3]
         total_length = header[4]
@@ -87,7 +116,6 @@ class Packet:
             dst_ip,
             ttl,
             protocol,
-            total_length,
             payload
         ) 
         # this is now payload of frame when you do Packet.pack()
@@ -103,10 +131,10 @@ class Segment:
 
     def __init__(
         self,
-        src_port: bytes,
-        dst_port: bytes,
-        seq_num: bytes,
-        type: bytes,
+        src_port: int,
+        dst_port: int,
+        seq_num: int,
+        type: int,
         payload: bytes = bytes()
     ):
         self.src_port = src_port
@@ -120,7 +148,26 @@ class Segment:
         self.length = Segment.HEADER_SIZE + len(payload)
         
     def compute_checksum(self):
-        pass
+        checksum = 0
+
+        # Add header fields
+        checksum += self.src_port
+        checksum += self.dst_port
+        checksum += self.length
+        checksum += self.type
+        checksum += self.seq_num
+
+        # Add payload bytes
+        for byte in self.payload:
+            checksum += byte
+
+        # Keep checksum within 16 bits
+        checksum = checksum % 65535
+
+        self.checksum = checksum
+
+        return checksum
+
     def verify_checksum(self):
 
         old_checksum = self.checksum
@@ -145,7 +192,7 @@ class Segment:
 
         return header + self.payload
     
-
+    @staticmethod
     def unpack(raw_data):
 
         header = raw_data[:Segment.HEADER_SIZE]
@@ -160,8 +207,8 @@ class Segment:
         segment = Segment(
             src_port,
             dst_port,
-            seg_type,
             seq_num,
+            seg_type,
             data
         )
 
