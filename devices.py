@@ -6,6 +6,7 @@ class Device:
         self.mac = mac
 
         self.routing_table = {}
+        self.arp_table = {}
     
     def log(self, layer, message):
         print(f"{self.name}: Layer {layer}: {message}")
