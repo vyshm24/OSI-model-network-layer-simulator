@@ -1,3 +1,5 @@
+#static configurations for devices in network
+
 ETHERNET_IPV4 = 0x0800
 IP_PROTOCOL_UDP = 17
 DEFAULT_TTL = 100
