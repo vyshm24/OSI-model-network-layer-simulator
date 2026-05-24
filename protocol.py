@@ -1,22 +1,28 @@
 import struct
 
+# converts raw mac bytes into a human-readable string like aa:bb:cc:dd:ee:ff
 def bytes_to_mac(mac_bytes: bytes) -> str:
     return ':'.join(f'{byte:02X}' for byte in mac_bytes)
 
+# converts a mac string back into raw bytes for packing into a frame
 def mac_to_bytes(mac: str) -> bytes:
     return bytes.fromhex(mac.replace(':', ''))
 
+# converts a dotted ip string into 4 raw bytes
 def ip_to_bytes(ip):
     return bytes(map(int, ip.split('.')))
 
+# converts 4 raw bytes back into a dotted ip string
 def bytes_to_ip(ip_bytes):
     return '.'.join(map(str, ip_bytes))
 
+# layer 2 ethernet frame — wraps a packet with source/dest mac addresses and an ethertype
 class Frame:
     MAX_DATA_SIZE = 1000
     HEADER_FORMAT = '! 6s 6s H'
     HEADER_SIZE = struct.calcsize(HEADER_FORMAT)
 
+    # creates a frame and validates that the macs look right and the payload isn't too big
     def __init__(self, 
         src_mac: str,
         dst_mac: str,
@@ -35,6 +41,7 @@ class Frame:
         self.ethertype = ethertype
         self.payload = payload
 
+    # serializes the frame into raw bytes ready to be sent on the wire
     def pack(self):
 
         self.dst_mac = mac_to_bytes(self.dst_mac)
@@ -43,6 +50,7 @@ class Frame:
         frame_format = f'!6s6sH{len(self.payload)}s'
         return struct.pack(frame_format, self.dst_mac, self.src_mac, self.ethertype, self.payload)
 
+    # deserializes raw bytes back into a frame object
     @staticmethod
     def unpack(raw_data):
 
@@ -65,10 +73,12 @@ class Frame:
     
 
 
+# layer 3 ip packet — carries a segment between devices with src/dst ip, ttl, and protocol info
 class Packet:
     HEADER_FORMAT = '!4s4sBBH'
     HEADER_SIZE = struct.calcsize(HEADER_FORMAT)
 
+    # stores all the ip header fields and the payload (which is usually a segment)
     def __init__(
         self,
         src_ip: str,
@@ -90,6 +100,7 @@ class Packet:
 
 
     
+    # serializes the packet into raw bytes so it can be stuffed into a frame's payload
     def pack(self):
         return struct.pack(
             Packet.HEADER_FORMAT,
@@ -101,6 +112,7 @@ class Packet:
         ) + self.payload
 
 
+    # deserializes raw bytes back into a packet object
     @staticmethod
     def unpack(data):
         header = struct.unpack(Packet.HEADER_FORMAT, data[:Packet.HEADER_SIZE])
@@ -118,10 +130,11 @@ class Packet:
             protocol,
             payload
         ) 
-        # this is now payload of frame when you do Packet.pack()
+        # this is now payload of frame when you do Packet.pack() — used as frame.payload
 
    
 
+# layer 4 transport segment — carries the actual data or an ack, with ports, seq number, and checksum
 class Segment:
 
     HEADER_FORMAT = '! H H H H B B'
@@ -129,6 +142,7 @@ class Segment:
     ACK = 1
     DATA = 0
 
+    # stores all the segment fields — checksum starts at 0 and gets computed later
     def __init__(
         self,
         src_port: int,
@@ -147,27 +161,29 @@ class Segment:
 
         self.length = Segment.HEADER_SIZE + len(payload)
         
+    # sums up all header fields and payload bytes, keeps it within 16 bits
     def compute_checksum(self):
         checksum = 0
 
-        # Add header fields
+        # add header fields
         checksum += self.src_port
         checksum += self.dst_port
         checksum += self.length
         checksum += self.type
         checksum += self.seq_num
 
-        # Add payload bytes
+        # add payload bytes
         for byte in self.payload:
             checksum += byte
 
-        # Keep checksum within 16 bits
+        # keep checksum within 16 bits
         checksum = checksum % 65535
 
         self.checksum = checksum
 
         return checksum
 
+    # recomputes the checksum and checks if it matches the one stored in the segment
     def verify_checksum(self):
 
         old_checksum = self.checksum
@@ -176,6 +192,7 @@ class Segment:
 
         return old_checksum == self.checksum
 
+    # serializes the segment into raw bytes, computing the checksum first
     def pack(self):
         
         self.compute_checksum()
@@ -192,6 +209,7 @@ class Segment:
 
         return header + self.payload
     
+    # deserializes raw bytes back into a segment object, restoring the original checksum
     @staticmethod
     def unpack(raw_data):
 
