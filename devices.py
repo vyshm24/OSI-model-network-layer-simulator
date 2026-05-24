@@ -45,13 +45,6 @@ class Device:
             
     def send_packet(self, packet, next_hop_ip):
 
-        self.log(3,f"Destination IP read: {packet.dst_ip}")
-
-        self.log(3,"Routing table lookup performed")
-
-        self.log(3,f"Next-hop IP determined: {next_hop_ip}")
-
-        self.log(3,"Packet forwarded to Data Link Layer")
 
 
         self.log(2,"Packet received from Network Layer")
@@ -88,6 +81,8 @@ class Device:
             self.log(3,"Packet identified as local delivery")
 
             self.log(3,"Segment delivered to Transport Layer")
+
+            self.last_sender_ip = packet.src_ip
 
             segment = Segment.unpack(packet.payload)
 
@@ -168,6 +163,16 @@ class Device:
         else:
             next_hop_ip = "10.0.2.1"
 
+        self.log(3, f"Destination IP read: {dst_ip}")
+
+        self.log(3, "Routing table lookup performed")
+
+        self.log(3, f"Next-hop IP determined: {next_hop_ip}")
+
+        self.log(3, "Outgoing interface selected")
+
+        self.log(3, "Packet forwarded to Data Link Layer")
+
         self.send_packet(packet, next_hop_ip)
 
 
@@ -206,12 +211,7 @@ class Device:
             payload=b''
         )
 
-        self.log(4,
-            f"Segment created by adding transport layer header "
-            f"(ACK, seq={segment.seq_num})"
-        )
 
-        self.log(4,"Segment sent to Network Layer")
 
         self.send_segment(
             ack_segment,
@@ -277,11 +277,7 @@ class Router(Device):
     
     def send_packet(self, packet, next_hop_ip):
 
-        self.log(3, f"Destination IP read: {packet.dst_ip}")
-
-        self.log(3, "Routing table lookup performed")
-
-        self.log(3, f"Next-hop IP determined: {next_hop_ip}")
+       
 
     
 
@@ -305,8 +301,7 @@ class Router(Device):
                 "Outgoing interface selected (Interface 1)"
             )
 
-        self.log(3, "Packet forwarded to Data Link Layer")
-
+    
         self.log(2, "Packet received from Network Layer")
 
         dst_mac = self.arp_table[next_hop_ip]

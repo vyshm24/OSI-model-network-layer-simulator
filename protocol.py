@@ -56,8 +56,8 @@ class Frame:
         payload = raw_data[Frame.HEADER_SIZE:]
 
         return Frame(
-            bytes_to_mac(dst_mac),
             bytes_to_mac(src_mac),
+            bytes_to_mac(dst_mac),
             eth_type,
             payload
         )
